@@ -1,63 +1,79 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   get_next_line.c                                    :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: sthrace <marvin@42.fr>                     +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2020/12/01 12:44:47 by sthrace           #+#    #+#             */
+/*   Updated: 2021/01/20 09:03:45 by sthrace          ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "get_next_line.h"
 
-void    *treat_leftover(char *lft, char **line) // if leftover contains more than 1 backslash n then only the final line will be returned
+static int			ft_free(char *str)
 {
-    char        *ptr;
-
-    ptr = NULL;
-    if (lft)
-    {
-        if ((ptr = ft_strchr(lft, '\n')))
-        {
-            *ptr = '\0';
-            *line = ft_strdup(lft);
-            ft_strcpy(lft, ++ptr);
-        }
-        else
-        {
-            *line = ft_strdup(lft);
-            *lft = '\0';
-        }
-    }
-    else
-    {
-        *line = (char *)malloc(sizeof(char) + 1);
-        **line = '\0';
-    }
-    return (ptr);
+	free(str);
+	str = NULL;
+	return (0);
 }
 
-int     get_next_line(int fd, char **line)
+static void			ft_dupandfree(char **dest, char **source)
 {
-    int         res;
-    char        buff[BUFFER_SIZE + 1];
-    char        *ptr;
-    static char *lft;
+	char		*templine;
 
-    ptr = treat_leftover(lft, line);   
-    while (!ptr && (res = read(fd, buff, BUFFER_SIZE)))
-    {
-        
-        if ((ptr = (ft_strchr(buff, '\n'))))
-        {
-            *ptr = '\0';
-            lft = ft_strdup(++ptr);
-        }
-        buff[res] = '\0';
-        *line = ft_strjoin(*line, buff);
-    }
-    return (res);
+	templine = *dest;
+	*dest = ft_strdup(*source);
+	free(templine);
 }
 
-int     main()
+static void			*treat_leftover(char **lft, char **line)
 {
-    int     fd;
-    char    *line;
-    int     i;
+	char		*ptr;
 
-    fd = open("test.txt", O_RDONLY);
-    while ((i = get_next_line(fd, &line)))
-        printf("Line: %s\n\n", line);
-    printf("LineF: %s\n\n", line);
-    return (0);
+	ptr = NULL;
+	*line = ft_strdup("");
+	if (*lft)
+	{
+		if ((ptr = ft_strchr(*lft, '\n')))
+		{
+			*ptr = '\0';
+			ft_dupandfree(line, lft);
+			ptr++;
+			ft_dupandfree(lft, &ptr);
+			return (ptr);
+		}
+		ft_dupandfree(line, lft);
+		free(*lft);
+		*lft = NULL;
+	}
+	return (ptr);
+}
+
+int					get_next_line(int fd, char **line)
+{
+	int			res;
+	char		buff[BUFFER_SIZE + 1];
+	char		*ptr;
+	static char	*lft;
+	char		*temp;
+
+	if (!(line) || BUFFER_SIZE <= 0 || fd < 0 || read(fd, buff, 0) == -1)
+		return (-1);
+	ptr = treat_leftover(&lft, line);
+	while (!ptr && (res = read(fd, buff, BUFFER_SIZE)) > 0)
+	{
+		buff[res] = '\0';
+		if ((ptr = ft_strchr(buff, '\n')))
+		{
+			*ptr = '\0';
+			lft = ft_strdup(++ptr);
+		}
+		temp = *line;
+		if (!(*line = ft_strjoin(*line, buff)))
+			return (-1);
+		free(temp);
+	}
+	return (lft) ? 1 : ft_free(lft);
 }
